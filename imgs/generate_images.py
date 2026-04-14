@@ -7,7 +7,9 @@ import os
 import sys
 import urllib.request
 
-API_KEY = "REDACTED"
+API_KEY = os.environ.get("GEMINI_API_KEY", "")
+if not API_KEY:
+    sys.exit("Error: GEMINI_API_KEY environment variable is not set. Usage: GEMINI_API_KEY=xxx python generate_images.py")
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 BASE_STYLE = """Minimal hand-drawn illustration with a subtle tech edge. Off-white paper background, dark gray sketch lines, muted umbrella yellow as the only accent color, with occasional thin circuit-trace or node-graph line details woven into the composition. Lots of negative space, Notion-like doodle aesthetic meets minimal blueprint hints. Faceless round-headed human figure, clean editorial composition, conceptual rather than literal, simple background. No realism, no 3D, no painterly texture, no high saturation, no complex scene, no photographic detail. The overall mood is restrained, lucid, slightly ironic, and emotionally calm. Keep the whole series visually consistent. Use Chinese wherever possible for any visible language or textual content, unless a proper noun, technical term, or special usage is better kept in its original form."""
