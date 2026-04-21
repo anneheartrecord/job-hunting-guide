@@ -3,7 +3,7 @@
 # Job Hunting Guide
 
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Docs](https://img.shields.io/badge/docs-3%20articles-blue)
+![Docs](https://img.shields.io/badge/docs-7%20articles-blue)
 ![Language](https://img.shields.io/badge/language-Chinese-orange)
 ![AI](https://img.shields.io/badge/AI%20Powered-Claude%20Code-purple)
 
@@ -20,6 +20,10 @@ Distilled from 100+ interviews and mentoring dozens of job seekers with differen
 | 01 | How to Prepare Your Resume | Your resume is a sales pitch, not a registration form |
 | 02 | Understanding Each Interview Round | Each round tests completely different abilities |
 | 03 | How to Prepare for Interviews | Interview skills can only be trained through simulation |
+| 04 | The Interview Self-Introduction | It's not a resume recap — it's a quick mental framework for the interviewer |
+| 05 | Should You Jump Ship, and How | Don't make decisions without leverage in hand |
+| 06 | Salary Negotiation | HR is your ally, not your opponent |
+| 07 | What to Do When You Can't Answer | It's not about whether you know — it's about how you handle not knowing |
 
 ## Who Is This For
 

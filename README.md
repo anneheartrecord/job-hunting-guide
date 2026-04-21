@@ -3,7 +3,7 @@
 # 求职系列 — Job Hunting Guide
 
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Docs](https://img.shields.io/badge/docs-3%20articles-blue)
+![Docs](https://img.shields.io/badge/docs-7%20articles-blue)
 ![Language](https://img.shields.io/badge/language-中文-orange)
 ![AI](https://img.shields.io/badge/AI%20Powered-Claude%20Code-purple)
 
@@ -20,6 +20,10 @@
 | [01-如何准备简历](docs/01-如何准备简历.md) | 简历的本质、排版原则、STAR 法则、钩子矩阵 | 简历是销售文案，不是信息登记表 |
 | [02-如何理解每轮面试](docs/02-如何理解每轮面试.md) | 一面到 HR 面的逐轮拆解、对话模式切换 | 每轮面试考察的能力完全不同 |
 | [03-如何准备面试](docs/03-如何准备面试.md) | 背景调查、简历微调、模拟面试、录音复盘 | 面试能力只能通过模拟来练 |
+| [04-面试的自我介绍](docs/04-面试的自我介绍.md) | 自我介绍的定位、内容结构、万金油版本与针对性调整 | 自我介绍不是复述简历，是给面试官一个入口框架 |
+| [05-如何跳槽](docs/05-如何跳槽.md) | 评估是否需要跳、跳槽前准备、信息收集、大厂 vs 初创决策框架 | 手里有筹码再做决定 |
+| [06-如何谈薪](docs/06-如何谈薪.md) | 算清年包、首次报价、议价因素叠加、HR 压价套路、守住 base | HR 是盟友，不是对手 |
+| [07-面试中答不上来怎么办](docs/07-面试中答不上来怎么办.md) | 说出认知边界、用已知推未知、开放题思维框架、复盘机制 | 答不上来不是问题，怎么答不上来才是 |
 
 ## 适合谁读
 
