@@ -13,8 +13,10 @@ import html
 import re
 import tempfile
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.entities import html5
+from itertools import count
 from pathlib import Path
 from urllib.parse import quote, unquote, urljoin, urlsplit
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
@@ -41,6 +43,9 @@ from epub_cover import render_epub_cover
 
 OUTPUT = ROOT / f"{TITLE}.epub"
 COVER_HREF = "images/cover.png"
+NAV_HREF = "nav.xhtml"
+TOC_HREF = "toc.xhtml"
+NCX_HREF = "toc.ncx"
 XHTML = "application/xhtml+xml"
 IMAGE_TYPES = {
     ".gif": "image/gif",
@@ -79,6 +84,13 @@ CONTAINER = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
+@dataclass
+class TocEntry:
+    title: str
+    href: str
+    children: list["TocEntry"]
+
+
 def xhtml(title: str, body: str) -> str:
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
@@ -93,15 +105,71 @@ def xhtml(title: str, body: str) -> str:
 """
 
 
-def toc_sections(href: str, headings: list[dict]) -> str:
-    if not headings:
-        return ""
+def epub_anchor(identifier: str) -> str:
+    # Some AZW3 conversions resolve Unicode links to the page start. Reserve an
+    # ASCII prefix so encoded IDs cannot collide with unchanged source IDs.
+    prefix = "epub-id-"
+    if identifier.isascii() and not identifier.startswith(prefix):
+        return identifier
+    return prefix + identifier.encode("utf-8").hex()
+
+
+def toc_label(title: str) -> str:
+    title = re.sub(r"^([0-9])[\ufe0e\ufe0f]?\u20e3(?=\s|$)", r"\1.", title)
+    return re.sub(r"([0-9#*])[\ufe0e\ufe0f]?\u20e3", r"\1", title)
+
+
+def section_entries(href: str, headings: list[dict]) -> list[TocEntry]:
+    return [
+        TocEntry(
+            toc_label(html.unescape(heading["name"])),
+            f"{href}#{quote(epub_anchor(heading['id']))}",
+            section_entries(href, heading["children"]),
+        )
+        for heading in headings
+    ]
+
+
+def render_toc_items(entries: list[TocEntry]) -> str:
     items = []
-    for heading in headings:
-        target = f"{href}#{quote(heading['id'])}"
-        title = html.escape(html.unescape(heading["name"]))
-        items.append(f'<li><a href="{target}">{title}</a>{toc_sections(href, heading["children"])}</li>')
-    return f"<ol>{''.join(items)}</ol>"
+    for entry in entries:
+        link = f'<a href="{html.escape(entry.href)}">{html.escape(entry.title)}</a>'
+        children = f"<ol>{render_toc_items(entry.children)}</ol>" if entry.children else ""
+        items.append(f"<li>{link}{children}</li>")
+    return "".join(items)
+
+
+def ncx_document(entries: list[TocEntry]) -> bytes:
+    ncx = ET.Element("ncx", {
+        "xmlns": "http://www.daisy.org/z3986/2005/ncx/",
+        "version": "2005-1",
+        "xml:lang": LANGUAGE,
+    })
+    head = ET.SubElement(ncx, "head")
+    title = ET.SubElement(ncx, "docTitle")
+    ET.SubElement(title, "text").text = TITLE
+    nav_map = ET.SubElement(ncx, "navMap")
+    play_order = count(1)
+
+    def add_points(parent: ET.Element, entries: list[TocEntry], depth: int) -> int:
+        max_depth = depth
+        for entry in entries:
+            order = next(play_order)
+            point = ET.SubElement(parent, "navPoint", id=f"nav-{order}", playOrder=str(order))
+            label = ET.SubElement(point, "navLabel")
+            ET.SubElement(label, "text").text = entry.title
+            ET.SubElement(point, "content", src=entry.href)
+            if entry.children:
+                max_depth = max(max_depth, add_points(point, entry.children, depth + 1))
+        return max_depth
+
+    depth = add_points(nav_map, entries, 1)
+    ET.SubElement(head, "meta", name="dtb:uid", content=REPOSITORY)
+    ET.SubElement(head, "meta", name="dtb:depth", content=str(depth))
+    ET.SubElement(head, "meta", name="dtb:totalPageCount", content="0")
+    ET.SubElement(head, "meta", name="dtb:maxPageNumber", content="0")
+    ET.indent(ncx)
+    return ET.tostring(ncx, encoding="utf-8", xml_declaration=True)
 
 
 def chapter_fragment(body: str, source: Path) -> ET.Element:
@@ -111,9 +179,13 @@ def chapter_fragment(body: str, source: Path) -> ET.Element:
 
     body = re.sub(r"&[a-zA-Z][a-zA-Z0-9]*;", numeric_entity, body)
     try:
-        return ET.fromstring(f'<section class="chapter">{body}</section>')
+        chapter = ET.fromstring(f'<section class="chapter">{body}</section>')
     except ET.ParseError as exc:
         raise ValueError(f"{source.name} 生成了无效的 XHTML：{exc}") from exc
+    for element in chapter.iter():
+        if identifier := element.get("id"):
+            element.set("id", epub_anchor(identifier))
+    return chapter
 
 
 def add_image(archive: ZipFile, source: Path, number: int, staging: Path) -> tuple[str, str]:
@@ -151,21 +223,23 @@ def package_document(spine: list[tuple[str, str]], images: list[tuple[str, str]]
 
     manifest = ET.SubElement(package, "manifest")
     ET.SubElement(manifest, "item", id="css", href="book.css", **{"media-type": "text/css"})
+    ET.SubElement(manifest, "item", id="nav", href=NAV_HREF, properties="nav", **{"media-type": XHTML})
+    ET.SubElement(manifest, "item", id="ncx", href=NCX_HREF, **{"media-type": "application/x-dtbncx+xml"})
     ET.SubElement(manifest, "item", {
         "id": "cover-image",
         "href": COVER_HREF,
         "media-type": "image/png",
         "properties": "cover-image",
     })
-    reading_order = ET.SubElement(package, "spine")
+    reading_order = ET.SubElement(package, "spine", toc="ncx")
     for item_id, href in spine:
-        item = ET.SubElement(manifest, "item", id=item_id, href=href, **{"media-type": XHTML})
-        if item_id == "nav":
-            item.set("properties", "nav")
+        ET.SubElement(manifest, "item", id=item_id, href=href, **{"media-type": XHTML})
         ET.SubElement(reading_order, "itemref", idref=item_id)
     for number, (href, media_type) in enumerate(images, start=1):
         ET.SubElement(manifest, "item", id=f"image-{number}", href=href, **{"media-type": media_type})
 
+    guide = ET.SubElement(package, "guide")
+    ET.SubElement(guide, "reference", type="toc", title="目录", href=TOC_HREF)
     ET.indent(package)
     return ET.tostring(package, encoding="utf-8", xml_declaration=True)
 
@@ -179,8 +253,8 @@ def build_epub(output: Path) -> None:
     cover_image = render_epub_cover(credits)
     cover_alt = html.escape("。".join((TITLE, SUBTITLE, *credits)))
     chapter_files = {path.resolve(): f"chapter-{i:02d}.xhtml" for i, path in enumerate(sources, start=1)}
-    spine = [("cover", "cover.xhtml"), ("nav", "nav.xhtml")]
-    toc_items, images = [], {}
+    spine = [("cover", "cover.xhtml"), ("preface", "preface.xhtml"), ("toc", TOC_HREF)]
+    toc_entries, images = [], {}
 
     with tempfile.TemporaryDirectory(dir=output.parent) as directory:
         staging = Path(directory)
@@ -219,35 +293,51 @@ def build_epub(output: Path) -> None:
                 for link in chapter.iter("a"):
                     href = link.get("href", "")
                     url = urlsplit(href)
-                    if not url.path or url.scheme or url.netloc:
+                    if url.scheme or url.netloc:
+                        continue
+                    fragment = quote(epub_anchor(unquote(url.fragment))) if url.fragment else ""
+                    if not url.path:
+                        if url.fragment:
+                            link.set("href", url._replace(fragment=fragment).geturl())
                         continue
                     linked_chapter = chapter_files.get((source.parent / unquote(url.path)).resolve())
                     if linked_chapter:
-                        fragment = f"#{quote(unquote(url.fragment))}" if url.fragment else ""
-                        link.set("href", linked_chapter + fragment)
+                        suffix = f"#{fragment}" if fragment else ""
+                        link.set("href", linked_chapter + suffix)
                     else:
                         link.set("href", urljoin(online_source, href))
 
                 href = chapter_files[source.resolve()]
                 spine.append((f"chapter-{number}", href))
-                toc_items.append(f'<li><a href="{href}">{html.escape(title)}</a>{toc_sections(href, headings)}</li>')
+                toc_entries.append(TocEntry(toc_label(title), href, section_entries(href, headings)))
                 archive.writestr(f"EPUB/{href}", xhtml(title, ET.tostring(chapter, encoding="unicode")))
 
-            nav = f"""
+            preface = f"""
 <section class="front" epub:type="preface">
-  <h2>写在前面</h2>{PREFACE}
+  <h1>写在前面</h1>{PREFACE}
   <p>本 EPUB 收录仓库 <code>docs/</code> 下的 {len(sources)} 篇文章，按文件名排列。</p>
-</section>
-<nav epub:type="toc" id="toc">
-  <h2>目录</h2>
-  <ol class="toc">{''.join(toc_items)}</ol>
+</section>"""
+            toc_list = f'<ol class="toc">{render_toc_items(toc_entries)}</ol>'
+            toc_page = f"<h1>目录</h1>\n{toc_list}"
+            nav = f"""
+<nav epub:type="toc">
+  {toc_page}
+</nav>
+<nav epub:type="landmarks" hidden="hidden">
+  <ol>
+    <li><a epub:type="toc" href="{TOC_HREF}">目录</a></li>
+    <li><a epub:type="bodymatter" href="{toc_entries[0].href}">正文起点</a></li>
+  </ol>
 </nav>"""
             cover = f"""
 <section class="epub-cover" epub:type="cover">
   <img src="{COVER_HREF}" alt="{cover_alt}" />
 </section>"""
             archive.writestr("EPUB/cover.xhtml", xhtml(TITLE, cover))
-            archive.writestr("EPUB/nav.xhtml", xhtml("写在前面与目录", nav))
+            archive.writestr("EPUB/preface.xhtml", xhtml("写在前面", preface))
+            archive.writestr(f"EPUB/{TOC_HREF}", xhtml("目录", toc_page))
+            archive.writestr(f"EPUB/{NAV_HREF}", xhtml("目录", nav))
+            archive.writestr(f"EPUB/{NCX_HREF}", ncx_document(toc_entries))
             archive.writestr("EPUB/book.opf", package_document(spine, list(images.values())))
         staged_epub.replace(output)
 
