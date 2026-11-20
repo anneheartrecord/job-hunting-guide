@@ -10,6 +10,8 @@
 > 📖 **在线阅读：** https://anneheartrecord.github.io/job-hunting-guide/
 >
 > 📕 **PDF 合集：** [求职系列.pdf](./求职系列.pdf)（七篇合成一册，带目录与书签，可离线阅读；用 `uv run scripts/build_pdf.py` 重新生成）
+>
+> 📗 **EPUB 合集** [求职系列.epub](./求职系列.epub)（支持可重排阅读、目录跳转和离线配图。用 `uv run scripts/build_epub.py` 重新生成。封面版本取构建月份，构建机需安装冬青黑体、微软雅黑或 Noto Sans CJK SC。）
 
 大厂工程师的求职方法论。从简历准备到面试策略，全流程拆解。
 
