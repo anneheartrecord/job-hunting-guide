@@ -10,6 +10,8 @@
 > 📖 **Read Online:** https://anneheartrecord.github.io/job-hunting-guide/
 >
 > 📕 **PDF Edition:** [求职系列.pdf](./求职系列.pdf) (all 7 articles in one book with TOC and bookmarks, for offline reading; rebuild with `uv run scripts/build_pdf.py`)
+>
+> 📗 **EPUB Edition** [求职系列.epub](./求职系列.epub) (reflowable text, a linked table of contents, and offline illustrations). Rebuild with `uv run scripts/build_epub.py`. The cover shows the build month and requires Hiragino Sans GB, Microsoft YaHei, or Noto Sans CJK SC on the build machine.
 
 A practical job hunting methodology from a senior engineer at a top tech company. Covers the entire process from resume preparation to interview strategy.
 
