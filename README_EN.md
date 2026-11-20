@@ -8,6 +8,8 @@
 ![AI](https://img.shields.io/badge/AI%20Powered-Claude%20Code-purple)
 
 > 📖 **Read Online:** https://anneheartrecord.github.io/job-hunting-guide/
+>
+> 📕 **PDF Edition:** [求职系列.pdf](./求职系列.pdf) (all 7 articles in one book with TOC and bookmarks, for offline reading; rebuild with `uv run scripts/build_pdf.py`)
 
 A practical job hunting methodology from a senior engineer at a top tech company. Covers the entire process from resume preparation to interview strategy.
 
